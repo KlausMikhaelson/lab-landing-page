@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Swarmies — Run the experiment before your users do",
+  title: "Swarm Labs — Run the experiment before your users do",
   description:
-    "Swarmies runs swarms of behavior-grounded agents through your real product flows, predicting which variant wins, who abandons, and why — before a single real user sees it.",
+    "Swarm Labs runs swarms of behavior-grounded agents through your real product flows, predicting which variant wins, who abandons, and why — before a single real user sees it.",
 };
 
 export default function RootLayout({

@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <main className="relative h-[100svh] w-full overflow-hidden bg-[#141728] text-white">
       {/* dotted nature scene */}
-      <NatureDither />
+      <NatureDither controls />
 
       {/* legibility scrims: darken top (nav/hero) and bottom (footer) only */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-2/3 bg-gradient-to-b from-black/55 via-black/25 to-transparent" />
@@ -14,7 +14,7 @@ export default function Home() {
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-10">
         <div className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.9)]" />
-          <span className="text-lg">Swarmies</span>
+          <span className="text-lg">Swarm Labs</span>
         </div>
         <div className="flex items-center gap-6 text-sm text-white/80">
           <a
@@ -47,7 +47,7 @@ export default function Home() {
         </h1>
 
         <p className="mt-6 max-w-xl text-pretty text-base leading-7 text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)] sm:text-lg">
-          Swarmies runs swarms of behavior-grounded agents through your real
+          Swarm Labs runs swarms of behavior-grounded agents through your real
           product flows — predicting which variant wins, who abandons, and
           exactly why, before a single real user sees it.
         </p>
@@ -72,7 +72,7 @@ export default function Home() {
 
       {/* footer */}
       <footer className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between px-6 py-4 text-xs text-white/70 sm:px-10">
-        <span>© {new Date().getFullYear()} Swarmies</span>
+        <span>© {new Date().getFullYear()} Swarm Labs</span>
         <span className="hidden sm:inline">
           Simulated users, grounded in real behavior.
         </span>

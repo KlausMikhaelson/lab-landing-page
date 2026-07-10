@@ -192,13 +192,14 @@ void main(){
   float hMid  = 0.40 + 0.15 * ridge(ax * 1.7, 40.0);
   float hNear = 0.36 + 0.23 * ridge(ax * 2.4, 70.0);
 
-  if (p.y < hFar)  col = vec3(0.50, 0.48, 0.63);
-  if (p.y < hMid)  col = vec3(0.33, 0.31, 0.52);
+  if (p.y < hFar)  col = applyLight(vec3(0.50, 0.48, 0.63), light, night);
+  if (p.y < hMid)  col = applyLight(vec3(0.33, 0.31, 0.52), light, night);
   if (p.y < hNear){
-    col = vec3(0.18, 0.17, 0.34);
+    vec3 m = vec3(0.18, 0.17, 0.34);
     // snow caps near the top of the tall peaks
     float cap = smoothstep(hNear - 0.07, hNear - 0.01, p.y);
-    col = mix(col, vec3(0.88, 0.89, 0.97), cap * smoothstep(0.46, 0.54, hNear));
+    m = mix(m, vec3(0.88, 0.89, 0.97), cap * smoothstep(0.46, 0.54, hNear));
+    col = applyLight(m, light, night);
   }
 
   // --- meadow ----------------------------------------------------------
@@ -206,7 +207,7 @@ void main(){
     float g = p.y / ground;
     vec3 grass = mix(vec3(0.13, 0.28, 0.11), vec3(0.37, 0.53, 0.24), g);
     grass *= 0.9 + 0.1 * fbm(vec2(ax * 8.0 - T * 0.12, p.y * 8.0)); // wind ripple
-    col = grass;
+    col = applyLight(grass, light, night);
   }
 
   // --- flowers: domain-repeated field, swaying in the wind -------------
@@ -232,7 +233,7 @@ void main(){
       // stem
       float onStem = smoothstep(0.0032, 0.0, abs(ax - sx))
                    * step(0.012, p.y) * step(p.y, stemH);
-      col = mix(col, vec3(0.14, 0.32, 0.14), onStem);
+      col = mix(col, applyLight(vec3(0.14, 0.32, 0.14), light, night), onStem);
 
       // one leaf, offset to a side, swaying a bit less than the tip
       float leafSide = r3 < 0.5 ? -1.0 : 1.0;
@@ -241,7 +242,7 @@ void main(){
       vec2  lq = vec2(ax - (cx + lsway + leafSide * 0.013), p.y - leafY);
       lq.y *= 3.0;                    // flatten into a leaf shape
       float leaf = smoothstep(0.013, 0.009, length(lq)) * step(0.012, p.y);
-      col = mix(col, vec3(0.17, 0.41, 0.18), leaf);
+      col = mix(col, applyLight(vec3(0.17, 0.41, 0.18), light, night), leaf);
 
       // blossom: radiating petals via an angular scallop of the radius
       vec2  q   = vec2(ax - sx, p.y - stemH);
@@ -256,14 +257,14 @@ void main(){
       // shade each petal: deep near the center, bright at the tip
       vec3 petal = flowerColor(r2);
       vec3 shade = mix(petal * 0.55, petal, smoothstep(baseR * 0.22, boundary, rad));
-      col = mix(col, shade, petalMask);
+      col = mix(col, applyLight(shade, light, night), petalMask);
 
       // pistil center (amber for most; darker for yellow petals)
       float fb = fract(r2 * 5.0);
       vec3  centerCol = (fb >= 0.2 && fb < 0.4) ? vec3(0.82, 0.46, 0.16)
                                                 : vec3(0.99, 0.83, 0.30);
       float centerR = baseR * 0.32;
-      col = mix(col, centerCol, smoothstep(centerR, centerR - 0.004, rad));
+      col = mix(col, applyLight(centerCol, light, night), smoothstep(centerR, centerR - 0.004, rad));
     }
   }
 
@@ -278,15 +279,18 @@ interface SceneMeshProps {
   pixelSize: number;
   colorNum: number;
   motion: boolean;
+  /** if set, freeze the scene at this hour instead of the live clock */
+  hourOverride: number | null;
 }
 
-function SceneMesh({ pixelSize, colorNum, motion }: SceneMeshProps) {
+function SceneMesh({ pixelSize, colorNum, motion, hourOverride }: SceneMeshProps) {
   const { viewport, size, gl } = useThree();
   const matRef = useRef<THREE.ShaderMaterial>(null);
 
   const uniforms = useMemo(
     () => ({
       time: new THREE.Uniform(6.0),
+      hour: new THREE.Uniform(12.0),
       resolution: new THREE.Uniform(new THREE.Vector2(1, 1)),
       pixelSize: new THREE.Uniform(pixelSize),
       colorNum: new THREE.Uniform(colorNum),
@@ -307,6 +311,15 @@ function SceneMesh({ pixelSize, colorNum, motion }: SceneMeshProps) {
     const mat = matRef.current;
     if (!mat) return;
     if (motion) mat.uniforms.time.value = clock.getElapsedTime() + 6.0;
+    // viewer's local time of day drives the sun/moon and lighting
+    // (a ?hour=N query param can pin it for previewing any time of day)
+    if (hourOverride !== null) {
+      mat.uniforms.hour.value = hourOverride;
+    } else {
+      const now = new Date();
+      mat.uniforms.hour.value =
+        now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+    }
     // render at native resolution but keep a constant on-screen dot size
     mat.uniforms.pixelSize.value = pixelSize * gl.getPixelRatio();
     mat.uniforms.colorNum.value = colorNum;
@@ -325,26 +338,64 @@ function SceneMesh({ pixelSize, colorNum, motion }: SceneMeshProps) {
   );
 }
 
+function fmtHour(h: number) {
+  const hh = Math.floor(h) % 24;
+  const mm = Math.floor((h - Math.floor(h)) * 60);
+  const ampm = hh < 12 ? "AM" : "PM";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return `${h12}:${mm.toString().padStart(2, "0")} ${ampm}`;
+}
+
 export interface NatureDitherProps {
   /** dot size in device pixels (bigger = chunkier dots) */
   pixelSize?: number;
   /** color levels per channel (lower = more posterized) */
   colorNum?: number;
+  /** show the time-of-day preview control */
+  controls?: boolean;
 }
 
 export default function NatureDither({
   pixelSize = 2,
   colorNum = 6,
+  controls = false,
 }: NatureDitherProps) {
   const [motion, setMotion] = useState(true);
+  const [manualHour, setManualHour] = useState(12);
+  const [live, setLive] = useState(true);
 
+  // reduced-motion + initial time (a ?hour=N query param pins the preview)
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setMotion(!mq.matches);
     update();
     mq.addEventListener("change", update);
+
+    const raw = new URLSearchParams(window.location.search).get("hour");
+    const h = raw === null ? NaN : Number(raw);
+    if (Number.isFinite(h)) {
+      setManualHour(((h % 24) + 24) % 24); // ?hour= pins a preview time
+      setLive(false);
+    } else {
+      const n = new Date();
+      setManualHour(n.getHours() + n.getMinutes() / 60);
+    }
+
     return () => mq.removeEventListener("change", update);
   }, []);
+
+  // while "live", keep the readout tracking the real clock (no immediate
+  // tick — that would clobber a ?hour= override during mount)
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(() => {
+      const n = new Date();
+      setManualHour(n.getHours() + n.getMinutes() / 60);
+    }, 30000);
+    return () => clearInterval(id);
+  }, [live]);
+
+  const hourOverride = live ? null : manualHour;
 
   return (
     <div className="absolute inset-0">
@@ -353,8 +404,44 @@ export default function NatureDither({
         dpr={[1, 2]}
         gl={{ antialias: false }}
       >
-        <SceneMesh pixelSize={pixelSize} colorNum={colorNum} motion={motion} />
+        <SceneMesh
+          pixelSize={pixelSize}
+          colorNum={colorNum}
+          motion={motion}
+          hourOverride={hourOverride}
+        />
       </Canvas>
+
+      {controls && (
+        <div className="pointer-events-auto fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/20 bg-black/45 px-4 py-2 text-xs text-white shadow-lg backdrop-blur-md">
+          <span className="w-16 shrink-0 text-center tabular-nums text-white/90">
+            {fmtHour(manualHour)}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={24}
+            step={0.25}
+            value={manualHour}
+            onChange={(e) => {
+              setManualHour(Number(e.target.value));
+              setLive(false);
+            }}
+            aria-label="Time of day"
+            className="h-1 w-40 cursor-pointer accent-emerald-300 sm:w-52"
+          />
+          <button
+            onClick={() => setLive((v) => !v)}
+            className={`shrink-0 rounded-full px-3 py-1 font-medium transition-colors ${
+              live
+                ? "bg-emerald-300 text-black"
+                : "border border-white/30 text-white/80 hover:bg-white/10"
+            }`}
+          >
+            {live ? "Live" : "Preview"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
