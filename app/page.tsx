@@ -1,4 +1,5 @@
 import NatureDither from "@/components/NatureDither";
+import WaitlistForm from "@/components/WaitlistForm";
 
 export default function Home() {
   return (
@@ -72,18 +73,12 @@ export default function Home() {
           Swarms of grounded agents reveal which version wins — and why.
         </p>
 
-        <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-          <a
-            id="access"
-            href="#"
-            className="inline-flex h-12 items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-[#141728] transition-transform hover:scale-[1.02] hover:bg-white/90"
-          >
-            Request early access
-          </a>
+        <div className="mt-9">
+          <WaitlistForm />
           <a
             id="how"
             href="#"
-            className="inline-flex h-12 items-center justify-center rounded-full border border-white/30 bg-white/5 px-7 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/15"
+            className="mt-4 inline-flex items-center text-sm font-medium text-white/75 underline-offset-4 transition-colors hover:text-white hover:underline"
           >
             See the proof →
           </a>
