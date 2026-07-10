@@ -284,11 +284,18 @@ function compileShader(
   return shader;
 }
 
-/** Set up WebGL, run the render loop, return a cleanup fn (or null on failure). */
+/** Set up WebGL, run the render loop, return a cleanup fn (or null on failure).
+ *  Calls onDeath when the context is gone for good (Safari killed it and never
+ *  restored it) — the component then remounts a FRESH canvas, since a new
+ *  element gets a brand-new context, stepping the resolution down a tier. */
 function startScene(
   canvas: HTMLCanvasElement,
-  state: { hourOverride: number | null; motion: boolean; pixelSize: number; colorNum: number }
+  state: { hourOverride: number | null; motion: boolean; pixelSize: number; colorNum: number },
+  dprCap: number,
+  onDeath: () => void
 ): (() => void) | null {
+  // build tag: lets us verify in the user's console WHICH bundle is running
+  console.info(`[SAC lab] scene renderer r5 — webgl1, live-recreate, dpr cap ${dprCap}`);
   const gl = (canvas.getContext("webgl", {
     antialias: false,
     alpha: false,
@@ -297,37 +304,53 @@ function startScene(
   }) || canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null;
   if (!gl) return null;
 
-  const vs = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSrc);
-  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSrc);
-  if (!vs || !fs) return null;
+  let program: WebGLProgram | null = null;
+  let buffer: WebGLBuffer | null = null;
+  let u: Record<string, WebGLUniformLocation | null> = {};
 
-  const program = gl.createProgram();
-  if (!program) return null;
-  gl.attachShader(program, vs);
-  gl.attachShader(program, fs);
-  gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    console.error("NatureDither program link error:", gl.getProgramInfoLog(program));
-    return null;
-  }
-  gl.useProgram(program);
+  // (Re)create every GPU resource. Called on init AND after a context restore,
+  // because a lost context invalidates all programs/buffers/uniform locations.
+  const buildResources = (): boolean => {
+    if (gl.isContextLost()) return false;
+    const vs = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSrc);
+    const fs = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSrc);
+    if (!vs || !fs) return false;
+    const prog = gl.createProgram();
+    if (!prog) return false;
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error("NatureDither program link error:", gl.getProgramInfoLog(prog));
+      return false;
+    }
+    program = prog;
+    gl.useProgram(program);
 
-  // one big triangle covering the viewport
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  const posLoc = gl.getAttribLocation(program, "position");
-  gl.enableVertexAttribArray(posLoc);
-  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+    // one big triangle covering the viewport
+    buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const posLoc = gl.getAttribLocation(program, "position");
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 
-  const uResolution = gl.getUniformLocation(program, "resolution");
-  const uTime = gl.getUniformLocation(program, "time");
-  const uHour = gl.getUniformLocation(program, "hour");
-  const uPixelSize = gl.getUniformLocation(program, "pixelSize");
-  const uColorNum = gl.getUniformLocation(program, "colorNum");
+    u = {
+      resolution: gl.getUniformLocation(program, "resolution"),
+      time: gl.getUniformLocation(program, "time"),
+      hour: gl.getUniformLocation(program, "hour"),
+      pixelSize: gl.getUniformLocation(program, "pixelSize"),
+      colorNum: gl.getUniformLocation(program, "colorNum"),
+    };
+    return true;
+  };
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const start = performance.now();
+  if (!buildResources()) return null;
+
+  const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+  const startTime = performance.now();
   let raf = 0;
   let running = true;
 
@@ -341,52 +364,97 @@ function startScene(
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
-      gl.viewport(0, 0, w, h);
     }
   };
 
   const render = (now: number) => {
     if (!running) return;
+    raf = requestAnimationFrame(render); // always keep polling (also for restore)
+    // if the context is lost, skip drawing entirely — never call gl.* on a lost
+    // context (that spams INVALID_OPERATION). Resume once it's restored.
+    if (gl.isContextLost() || !program) return;
+
     resize();
-    const t = state.motion ? (now - start) / 1000 + 6.0 : 6.0;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+
+    const t = state.motion ? (now - startTime) / 1000 + 6.0 : 6.0;
     let hour = state.hourOverride;
     if (hour === null) {
       const d = new Date();
       hour = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
     }
-    gl.uniform2f(uResolution, canvas.width, canvas.height);
-    gl.uniform1f(uTime, t);
-    gl.uniform1f(uHour, hour);
-    gl.uniform1f(uPixelSize, state.pixelSize * dpr);
-    gl.uniform1f(uColorNum, state.colorNum);
-    gl.clearColor(0.08, 0.09, 0.16, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(u.resolution, canvas.width, canvas.height);
+    gl.uniform1f(u.time, t);
+    gl.uniform1f(u.hour, hour);
+    gl.uniform1f(u.pixelSize, state.pixelSize * dpr);
+    gl.uniform1f(u.colorNum, state.colorNum);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    raf = requestAnimationFrame(render);
   };
   raf = requestAnimationFrame(render);
 
-  const onLost = (e: Event) => {
-    e.preventDefault();
+  let died = false;
+  let restoreTimer: ReturnType<typeof setTimeout> | null = null;
+  const die = () => {
+    // this context is gone for good — hand control back to the component,
+    // which mounts a fresh canvas (new element = brand-new context)
+    if (died) return;
+    died = true;
     running = false;
     cancelAnimationFrame(raf);
+    onDeath();
+  };
+
+  let lossCount = 0;
+  let lastLossAt = 0;
+  const onLost = (e: Event) => {
+    e.preventDefault(); // REQUIRED, or the browser never fires a restore
+    program = null;
+    const now = performance.now();
+    lossCount = now - lastLossAt < 10000 ? lossCount + 1 : 1;
+    lastLossAt = now;
+    if (lossCount >= 3) {
+      // thrashing: the GPU keeps killing us — recreate at a lower resolution
+      // tier instead of looping lose/rebuild forever
+      console.warn("[SAC lab] WebGL context thrashing — recreating at lower resolution");
+      die();
+      return;
+    }
+    // Safari sometimes never fires webglcontextrestored; don't wait forever
+    restoreTimer = setTimeout(() => {
+      if (!program) {
+        console.warn("[SAC lab] WebGL context not restored — recreating canvas");
+        die();
+      }
+    }, 1500);
   };
   const onRestored = () => {
-    running = true;
-    raf = requestAnimationFrame(render);
+    if (restoreTimer) {
+      clearTimeout(restoreTimer);
+      restoreTimer = null;
+    }
+    if (running) buildResources(); // GPU resources are gone; rebuild them
   };
   canvas.addEventListener("webglcontextlost", onLost, false);
   canvas.addEventListener("webglcontextrestored", onRestored, false);
 
+  // pause while the tab is hidden: Safari is quickest to kill the contexts
+  // of pages still drawing in the background
+  const onVisibility = () => {
+    cancelAnimationFrame(raf);
+    if (!document.hidden && running) raf = requestAnimationFrame(render);
+  };
+  document.addEventListener("visibilitychange", onVisibility);
+
   return () => {
     running = false;
     cancelAnimationFrame(raf);
+    if (restoreTimer) clearTimeout(restoreTimer);
     canvas.removeEventListener("webglcontextlost", onLost);
     canvas.removeEventListener("webglcontextrestored", onRestored);
-    gl.deleteProgram(program);
-    gl.deleteShader(vs);
-    gl.deleteShader(fs);
-    gl.deleteBuffer(buffer);
+    document.removeEventListener("visibilitychange", onVisibility);
+    if (program) gl.deleteProgram(program);
+    if (buffer) gl.deleteBuffer(buffer);
   };
 }
 
@@ -416,6 +484,11 @@ export default function NatureDither({
   const [motion, setMotion] = useState(true);
   const [manualHour, setManualHour] = useState(12);
   const [live, setLive] = useState(true);
+  // when a context dies permanently we remount a fresh canvas (keyed by gen),
+  // stepping the resolution cap down a tier each attempt — GPU memory
+  // pressure is the usual reason Safari kills contexts in the first place
+  const [gen, setGen] = useState(0);
+  const attemptsRef = useRef(0);
 
   const hourOverride = live ? null : manualHour;
 
@@ -457,18 +530,26 @@ export default function NatureDither({
     return () => clearInterval(id);
   }, [live]);
 
-  // set up WebGL once; the loop reads stateRef for live values
+  // set up WebGL per canvas generation; the loop reads stateRef for live
+  // values. a dead context triggers a remount with a lower resolution cap.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const cleanup = startScene(canvas, stateRef.current);
+    const tier = Math.min(attemptsRef.current, 2);
+    const dprCap = tier === 0 ? 2 : tier === 1 ? 1.5 : 1;
+    const cleanup = startScene(canvas, stateRef.current, dprCap, () => {
+      if (attemptsRef.current < 6) {
+        attemptsRef.current += 1;
+        setGen((g) => g + 1);
+      }
+    });
     return cleanup ?? undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [gen]);
 
   return (
     <div className="absolute inset-0">
-      <canvas ref={canvasRef} className="block h-full w-full" />
+      <canvas key={gen} ref={canvasRef} className="block h-full w-full" />
 
       {controls && (
         <div className="pointer-events-auto fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/20 bg-black/45 px-4 py-2 text-xs text-white shadow-lg backdrop-blur-md">
