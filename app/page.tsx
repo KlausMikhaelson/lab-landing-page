@@ -12,8 +12,27 @@ export default function Home() {
 
       {/* nav */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-10">
-        <div className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.9)]" />
+        <div className="flex items-center gap-2.5 font-semibold tracking-tight">
+          {/* pixel dot-matrix "swarm" mark — echoes the dithered dots */}
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 14 14"
+            aria-hidden
+            className="shrink-0 drop-shadow-[0_0_7px_rgba(110,231,183,0.55)]"
+          >
+            <g fill="#6ee7b7">
+              <rect x="0.6" y="0.6" width="3.2" height="3.2" />
+              <rect x="10.2" y="0.6" width="3.2" height="3.2" />
+              <rect x="5.4" y="5.4" width="3.2" height="3.2" />
+              <rect x="0.6" y="10.2" width="3.2" height="3.2" />
+              <rect x="10.2" y="10.2" width="3.2" height="3.2" />
+              <rect x="5.4" y="0.6" width="3.2" height="3.2" opacity="0.3" />
+              <rect x="0.6" y="5.4" width="3.2" height="3.2" opacity="0.3" />
+              <rect x="10.2" y="5.4" width="3.2" height="3.2" opacity="0.3" />
+              <rect x="5.4" y="10.2" width="3.2" height="3.2" opacity="0.3" />
+            </g>
+          </svg>
           <span className="text-lg">SAC lab</span>
         </div>
         <div className="flex items-center gap-6 text-sm text-white/80">

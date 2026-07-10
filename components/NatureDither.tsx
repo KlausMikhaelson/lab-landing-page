@@ -1,29 +1,28 @@
 "use client";
 
 /**
- * NatureDither — a dawn nature scene (sky, sun, layered mountains, a meadow and
- * wind-swaying flowers) drawn entirely in a fragment shader, then quantized with
- * an 8x8 Bayer ordered-dither so the whole picture resolves into colored DOTS.
+ * NatureDither — a nature scene (sky, sun/moon on a local-time day-night cycle,
+ * layered mountains, a meadow and wind-swaying flowers) drawn entirely in one
+ * fragment shader, then quantized with an 8x8 Bayer ordered-dither so the whole
+ * picture resolves into colored DOTS.
  *
- * The dither is the same technique as trytokenwrap's <Dither/>; here it runs over
- * a full-color scene instead of a single wave, so every element keeps its own
- * color ("color based on what it is") while sharing the dotted look.
+ * Rendered with a hand-rolled WebGL1 renderer (no three.js / react-three-fiber):
+ * the scene is a single full-screen fragment shader, so the heavy 3D stack is
+ * unnecessary — and its WebGL2 shader path is what fails in Safari. Plain WebGL1
+ * is universally supported, and we compile with null-checks so an unsupported
+ * context degrades gracefully instead of throwing.
  */
 
-import { useRef, useMemo, useEffect, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import * as THREE from "three";
+import { useEffect, useRef, useState } from "react";
 
-const vertexShader = /* glsl */ `
-precision highp float;
-varying vec2 vUv;
+const vertexShaderSrc = /* glsl */ `
+attribute vec2 position;
 void main() {
-  vUv = uv;
-  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+  gl_Position = vec4(position, 0.0, 1.0);
 }
 `;
 
-const fragmentShader = /* glsl */ `
+const fragmentShaderSrc = /* glsl */ `
 precision highp float;
 uniform vec2  resolution;
 uniform float time;
@@ -212,8 +211,9 @@ void main(){
       float r  = hash11(cell * 1.7);
       float r2 = hash11(cell * 3.1 + 5.0);
       float r3 = hash11(cell * 2.3 + 11.0);
-      if (r < 0.30) continue;        // sparsity: not every cell blooms
-
+      // sparsity: only some cells bloom (an if-block, not a continue
+      // statement, which Safari's hardware Metal shader compiler can miscompile)
+      if (r >= 0.30) {
       float cx    = (cell + 0.5 + (r2 - 0.5) * 0.4) * cw;
       float stemH = 0.11 + r * 0.14; // blossom height above the ground
       float gust  = fbm(vec2(cell * 0.5, T * 0.25));
@@ -256,6 +256,7 @@ void main(){
                                                 : vec3(0.99, 0.83, 0.30);
       float centerR = baseR * 0.32;
       col = mix(col, applyLight(centerCol, light, night), smoothstep(centerR, centerR - 0.004, rad));
+      }
     }
   }
 
@@ -266,67 +267,127 @@ void main(){
 }
 `;
 
-interface SceneMeshProps {
-  pixelSize: number;
-  colorNum: number;
-  motion: boolean;
-  /** if set, freeze the scene at this hour instead of the live clock */
-  hourOverride: number | null;
+function compileShader(
+  gl: WebGLRenderingContext,
+  type: number,
+  src: string
+): WebGLShader | null {
+  const shader = gl.createShader(type);
+  if (!shader) return null;
+  gl.shaderSource(shader, src);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.error("NatureDither shader compile error:", gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+    return null;
+  }
+  return shader;
 }
 
-function SceneMesh({ pixelSize, colorNum, motion, hourOverride }: SceneMeshProps) {
-  const { viewport, size, gl } = useThree();
-  const matRef = useRef<THREE.ShaderMaterial>(null);
+/** Set up WebGL, run the render loop, return a cleanup fn (or null on failure). */
+function startScene(
+  canvas: HTMLCanvasElement,
+  state: { hourOverride: number | null; motion: boolean; pixelSize: number; colorNum: number }
+): (() => void) | null {
+  const gl = (canvas.getContext("webgl", {
+    antialias: false,
+    alpha: false,
+    depth: false,
+    premultipliedAlpha: false,
+  }) || canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null;
+  if (!gl) return null;
 
-  const uniforms = useMemo(
-    () => ({
-      time: new THREE.Uniform(6.0),
-      hour: new THREE.Uniform(12.0),
-      resolution: new THREE.Uniform(new THREE.Vector2(1, 1)),
-      pixelSize: new THREE.Uniform(pixelSize),
-      colorNum: new THREE.Uniform(colorNum),
-    }),
-    [] // created once; kept in sync in useFrame
-  );
+  const vs = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSrc);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSrc);
+  if (!vs || !fs) return null;
 
-  useEffect(() => {
-    if (!matRef.current) return;
-    const dpr = gl.getPixelRatio();
-    matRef.current.uniforms.resolution.value.set(
-      Math.floor(size.width * dpr),
-      Math.floor(size.height * dpr)
-    );
-  }, [size, gl]);
+  const program = gl.createProgram();
+  if (!program) return null;
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error("NatureDither program link error:", gl.getProgramInfoLog(program));
+    return null;
+  }
+  gl.useProgram(program);
 
-  useFrame(({ clock }) => {
-    const mat = matRef.current;
-    if (!mat) return;
-    if (motion) mat.uniforms.time.value = clock.getElapsedTime() + 6.0;
-    // viewer's local time of day drives the sun/moon and lighting
-    // (a ?hour=N query param can pin it for previewing any time of day)
-    if (hourOverride !== null) {
-      mat.uniforms.hour.value = hourOverride;
-    } else {
-      const now = new Date();
-      mat.uniforms.hour.value =
-        now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  // one big triangle covering the viewport
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const posLoc = gl.getAttribLocation(program, "position");
+  gl.enableVertexAttribArray(posLoc);
+  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+  const uResolution = gl.getUniformLocation(program, "resolution");
+  const uTime = gl.getUniformLocation(program, "time");
+  const uHour = gl.getUniformLocation(program, "hour");
+  const uPixelSize = gl.getUniformLocation(program, "pixelSize");
+  const uColorNum = gl.getUniformLocation(program, "colorNum");
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const start = performance.now();
+  let raf = 0;
+  let running = true;
+
+  const resize = () => {
+    // fall back to the viewport if layout hasn't sized the canvas yet
+    // (avoids a 0-size drawing buffer -> blank canvas on some Safari loads)
+    const cssW = canvas.clientWidth || window.innerWidth;
+    const cssH = canvas.clientHeight || window.innerHeight;
+    const w = Math.max(1, Math.floor(cssW * dpr));
+    const h = Math.max(1, Math.floor(cssH * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      gl.viewport(0, 0, w, h);
     }
-    // render at native resolution but keep a constant on-screen dot size
-    mat.uniforms.pixelSize.value = pixelSize * gl.getPixelRatio();
-    mat.uniforms.colorNum.value = colorNum;
-  });
+  };
 
-  return (
-    <mesh scale={[viewport.width, viewport.height, 1]}>
-      <planeGeometry args={[1, 1]} />
-      <shaderMaterial
-        ref={matRef}
-        vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
-        uniforms={uniforms}
-      />
-    </mesh>
-  );
+  const render = (now: number) => {
+    if (!running) return;
+    resize();
+    const t = state.motion ? (now - start) / 1000 + 6.0 : 6.0;
+    let hour = state.hourOverride;
+    if (hour === null) {
+      const d = new Date();
+      hour = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+    }
+    gl.uniform2f(uResolution, canvas.width, canvas.height);
+    gl.uniform1f(uTime, t);
+    gl.uniform1f(uHour, hour);
+    gl.uniform1f(uPixelSize, state.pixelSize * dpr);
+    gl.uniform1f(uColorNum, state.colorNum);
+    gl.clearColor(0.08, 0.09, 0.16, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    raf = requestAnimationFrame(render);
+  };
+  raf = requestAnimationFrame(render);
+
+  const onLost = (e: Event) => {
+    e.preventDefault();
+    running = false;
+    cancelAnimationFrame(raf);
+  };
+  const onRestored = () => {
+    running = true;
+    raf = requestAnimationFrame(render);
+  };
+  canvas.addEventListener("webglcontextlost", onLost, false);
+  canvas.addEventListener("webglcontextrestored", onRestored, false);
+
+  return () => {
+    running = false;
+    cancelAnimationFrame(raf);
+    canvas.removeEventListener("webglcontextlost", onLost);
+    canvas.removeEventListener("webglcontextrestored", onRestored);
+    gl.deleteProgram(program);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    gl.deleteBuffer(buffer);
+  };
 }
 
 function fmtHour(h: number) {
@@ -351,9 +412,20 @@ export default function NatureDither({
   colorNum = 6,
   controls = false,
 }: NatureDitherProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [motion, setMotion] = useState(true);
   const [manualHour, setManualHour] = useState(12);
   const [live, setLive] = useState(true);
+
+  const hourOverride = live ? null : manualHour;
+
+  // the render loop reads this mutable ref so it never needs to restart.
+  // mutate fields in place (keep the object identity startScene captured).
+  const stateRef = useRef({ hourOverride, motion, pixelSize, colorNum });
+  stateRef.current.hourOverride = hourOverride;
+  stateRef.current.motion = motion;
+  stateRef.current.pixelSize = pixelSize;
+  stateRef.current.colorNum = colorNum;
 
   // reduced-motion + initial time (a ?hour=N query param pins the preview)
   useEffect(() => {
@@ -375,8 +447,7 @@ export default function NatureDither({
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  // while "live", keep the readout tracking the real clock (no immediate
-  // tick — that would clobber a ?hour= override during mount)
+  // while "live", keep the readout tracking the real clock
   useEffect(() => {
     if (!live) return;
     const id = setInterval(() => {
@@ -386,22 +457,18 @@ export default function NatureDither({
     return () => clearInterval(id);
   }, [live]);
 
-  const hourOverride = live ? null : manualHour;
+  // set up WebGL once; the loop reads stateRef for live values
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const cleanup = startScene(canvas, stateRef.current);
+    return cleanup ?? undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="absolute inset-0">
-      <Canvas
-        camera={{ position: [0, 0, 6] }}
-        dpr={[1, 2]}
-        gl={{ antialias: false }}
-      >
-        <SceneMesh
-          pixelSize={pixelSize}
-          colorNum={colorNum}
-          motion={motion}
-          hourOverride={hourOverride}
-        />
-      </Canvas>
+      <canvas ref={canvasRef} className="block h-full w-full" />
 
       {controls && (
         <div className="pointer-events-auto fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/20 bg-black/45 px-4 py-2 text-xs text-white shadow-lg backdrop-blur-md">
