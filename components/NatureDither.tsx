@@ -154,12 +154,18 @@ void main(){
   vec3 skyHor = mix(mix(horNight, horTwi, toTwi), horDay, toDay);
   vec3 col = mix(skyHor, skyTop, smoothstep(0.30, 1.0, p.y));
 
-  // stars, only at night and only in the sky
-  if (night > 0.01){
+  // stars: each twinkles on its own random phase + speed, mostly dim with
+  // occasional flares, so different stars sparkle at different moments
+  if (night > 0.01 && p.y > horizonY - 0.05){
     vec2 sg = floor(fc / 3.0);
-    float sv = hash21(sg);
-    float star = step(0.996, sv) * night * step(horizonY - 0.05, p.y);
-    col += vec3(0.9, 0.95, 1.0) * star * (0.6 + 0.4 * sin(T * 3.0 + sv * 100.0));
+    if (hash21(sg) > 0.996){
+      float ph  = hash21(sg + 17.3);              // independent phase
+      float spd = 0.4 + 1.8 * hash21(sg + 91.7);  // independent speed
+      float tw  = 0.5 + 0.5 * sin(T * spd + ph * 6.2831853);
+      tw = 0.25 + 0.75 * pow(tw, 4.0);            // spiky: dim, brief flares
+      vec3 tint = mix(vec3(0.82, 0.90, 1.0), vec3(1.0, 0.95, 0.85), hash21(sg + 5.1));
+      col += tint * night * tw;
+    }
   }
 
   // drifting clouds (fade out at night)

@@ -14,7 +14,7 @@ export default function Home() {
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-10">
         <div className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.9)]" />
-          <span className="text-lg">Swarm Labs</span>
+          <span className="text-lg">SAC lab</span>
         </div>
         <div className="flex items-center gap-6 text-sm text-white/80">
           <a
@@ -34,10 +34,13 @@ export default function Home() {
 
       {/* hero — kept in the upper (sky) region so the flowers stay visible */}
       <section className="relative z-10 mx-auto mt-[10vh] max-w-3xl px-6 sm:mt-[13vh] sm:px-10">
-        <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/85 backdrop-blur-sm">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-          Grounded predictions beat shuffled controls on real behavioral data —
-          p&nbsp;&lt;&nbsp;0.01
+        <p className="mb-6 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-xs tracking-tight text-white/80 [text-shadow:0_1px_5px_rgba(0,0,0,0.85)]">
+          <span
+            aria-hidden
+            className="inline-block h-2 w-2 shrink-0 bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.7)]"
+          />
+          Grounded predictions beat shuffled controls on real behavioral data
+          <span className="text-emerald-300">p&nbsp;&lt;&nbsp;0.01</span>
         </p>
 
         <h1 className="text-balance text-4xl font-semibold leading-[1.05] tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)] sm:text-6xl">
@@ -47,7 +50,7 @@ export default function Home() {
         </h1>
 
         <p className="mt-6 max-w-xl text-pretty text-base leading-7 text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)] sm:text-lg">
-          Swarm Labs runs swarms of behavior-grounded agents through your real
+          SAC lab runs swarms of behavior-grounded agents through your real
           product flows — predicting which variant wins, who abandons, and
           exactly why, before a single real user sees it.
         </p>
@@ -72,7 +75,7 @@ export default function Home() {
 
       {/* footer */}
       <footer className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between px-6 py-4 text-xs text-white/70 sm:px-10">
-        <span>© {new Date().getFullYear()} Swarm Labs</span>
+        <span>© {new Date().getFullYear()} SAC lab</span>
         <span className="hidden sm:inline">
           Simulated users, grounded in real behavior.
         </span>
