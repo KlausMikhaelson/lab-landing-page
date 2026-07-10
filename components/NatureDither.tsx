@@ -75,29 +75,14 @@ float ridge(float x, float seed){
 }
 
 // ---------- 8x8 Bayer ordered dither -------------------------------------
-float bayer8(vec2 c){
-  int x = int(mod(c.x, 8.0));
-  int y = int(mod(c.y, 8.0));
-  int idx = y * 8 + x;
-  float table[64];
-  table[0]  =  0.0/64.0; table[1]  = 48.0/64.0; table[2]  = 12.0/64.0; table[3]  = 60.0/64.0;
-  table[4]  =  3.0/64.0; table[5]  = 51.0/64.0; table[6]  = 15.0/64.0; table[7]  = 63.0/64.0;
-  table[8]  = 32.0/64.0; table[9]  = 16.0/64.0; table[10] = 44.0/64.0; table[11] = 28.0/64.0;
-  table[12] = 35.0/64.0; table[13] = 19.0/64.0; table[14] = 47.0/64.0; table[15] = 31.0/64.0;
-  table[16] =  8.0/64.0; table[17] = 56.0/64.0; table[18] =  4.0/64.0; table[19] = 52.0/64.0;
-  table[20] = 11.0/64.0; table[21] = 59.0/64.0; table[22] =  7.0/64.0; table[23] = 55.0/64.0;
-  table[24] = 40.0/64.0; table[25] = 24.0/64.0; table[26] = 36.0/64.0; table[27] = 20.0/64.0;
-  table[28] = 43.0/64.0; table[29] = 27.0/64.0; table[30] = 39.0/64.0; table[31] = 23.0/64.0;
-  table[32] =  2.0/64.0; table[33] = 50.0/64.0; table[34] = 14.0/64.0; table[35] = 62.0/64.0;
-  table[36] =  1.0/64.0; table[37] = 49.0/64.0; table[38] = 13.0/64.0; table[39] = 61.0/64.0;
-  table[40] = 34.0/64.0; table[41] = 18.0/64.0; table[42] = 46.0/64.0; table[43] = 30.0/64.0;
-  table[44] = 33.0/64.0; table[45] = 17.0/64.0; table[46] = 45.0/64.0; table[47] = 29.0/64.0;
-  table[48] = 10.0/64.0; table[49] = 58.0/64.0; table[50] =  6.0/64.0; table[51] = 54.0/64.0;
-  table[52] =  9.0/64.0; table[53] = 57.0/64.0; table[54] =  5.0/64.0; table[55] = 53.0/64.0;
-  table[56] = 42.0/64.0; table[57] = 26.0/64.0; table[58] = 38.0/64.0; table[59] = 22.0/64.0;
-  table[60] = 41.0/64.0; table[61] = 25.0/64.0; table[62] = 37.0/64.0; table[63] = 21.0/64.0;
-  return table[idx];
+// Arithmetic Bayer (no local arrays / dynamic indexing) so it compiles on
+// strict WebGL implementations too — Safari/WebKit rejects the table form.
+float bayer2(vec2 a){
+  a = floor(a);
+  return fract(a.x * 0.5 + a.y * a.y * 0.75);
 }
+float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+float bayer8(vec2 a){ return bayer4(0.5 * a) * 0.25 + bayer2(a); }
 vec3 dither(vec2 fragCoord, vec3 color, float ps){
   vec2 sc = floor(fragCoord / ps);
   // Bayer + a little static noise: breaks the diagonal Bayer streaks that

@@ -39,7 +39,7 @@ export default function Home() {
             aria-hidden
             className="inline-block h-2 w-2 shrink-0 bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.7)]"
           />
-          Grounded predictions beat shuffled controls on real behavioral data
+          Backtested on real behavioral data
           <span className="text-emerald-300">p&nbsp;&lt;&nbsp;0.01</span>
         </p>
 
@@ -49,10 +49,8 @@ export default function Home() {
           before your users do.
         </h1>
 
-        <p className="mt-6 max-w-xl text-pretty text-base leading-7 text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)] sm:text-lg">
-          SAC lab runs swarms of behavior-grounded agents through your real
-          product flows — predicting which variant wins, who abandons, and
-          exactly why, before a single real user sees it.
+        <p className="mt-6 max-w-md text-pretty text-base leading-7 text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)] sm:text-lg">
+          Swarms of grounded agents reveal which version wins — and why.
         </p>
 
         <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -68,7 +66,7 @@ export default function Home() {
             href="#"
             className="inline-flex h-12 items-center justify-center rounded-full border border-white/30 bg-white/5 px-7 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/15"
           >
-            See the validation →
+            See the proof →
           </a>
         </div>
       </section>
