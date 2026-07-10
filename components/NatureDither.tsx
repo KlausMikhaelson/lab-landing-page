@@ -1,0 +1,360 @@
+"use client";
+
+/**
+ * NatureDither — a dawn nature scene (sky, sun, layered mountains, a meadow and
+ * wind-swaying flowers) drawn entirely in a fragment shader, then quantized with
+ * an 8x8 Bayer ordered-dither so the whole picture resolves into colored DOTS.
+ *
+ * The dither is the same technique as trytokenwrap's <Dither/>; here it runs over
+ * a full-color scene instead of a single wave, so every element keeps its own
+ * color ("color based on what it is") while sharing the dotted look.
+ */
+
+import { useRef, useMemo, useEffect, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import * as THREE from "three";
+
+const vertexShader = /* glsl */ `
+precision highp float;
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+}
+`;
+
+const fragmentShader = /* glsl */ `
+precision highp float;
+uniform vec2  resolution;
+uniform float time;
+uniform float hour;        // viewer's local time of day, 0..24
+uniform float pixelSize;   // size of each dot, in device pixels
+uniform float colorNum;    // quantization levels per channel
+
+// ---------- hash / value-noise / fbm -------------------------------------
+float hash11(float p){
+  p = fract(p * 0.1031);
+  p *= p + 33.33;
+  p *= p + p;
+  return fract(p);
+}
+float hash21(vec2 p){
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+float vnoise(vec2 p){
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float a = hash21(i);
+  float b = hash21(i + vec2(1.0, 0.0));
+  float c = hash21(i + vec2(0.0, 1.0));
+  float d = hash21(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+float fbm(vec2 p){
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 5; i++){
+    v += a * vnoise(p);
+    p *= 2.0;
+    a *= 0.5;
+  }
+  return v;
+}
+// ridged fbm: sharp, mountain-like silhouettes (peaks instead of rolling hills)
+float ridge(float x, float seed){
+  float v = 0.0, a = 0.5, f = 1.0;
+  for (int i = 0; i < 4; i++){
+    v += a * (1.0 - abs(vnoise(vec2(x * f + seed, seed)) * 2.0 - 1.0));
+    f *= 2.0;
+    a *= 0.5;
+  }
+  return v;
+}
+
+// ---------- 8x8 Bayer ordered dither -------------------------------------
+float bayer8(vec2 c){
+  int x = int(mod(c.x, 8.0));
+  int y = int(mod(c.y, 8.0));
+  int idx = y * 8 + x;
+  float table[64];
+  table[0]  =  0.0/64.0; table[1]  = 48.0/64.0; table[2]  = 12.0/64.0; table[3]  = 60.0/64.0;
+  table[4]  =  3.0/64.0; table[5]  = 51.0/64.0; table[6]  = 15.0/64.0; table[7]  = 63.0/64.0;
+  table[8]  = 32.0/64.0; table[9]  = 16.0/64.0; table[10] = 44.0/64.0; table[11] = 28.0/64.0;
+  table[12] = 35.0/64.0; table[13] = 19.0/64.0; table[14] = 47.0/64.0; table[15] = 31.0/64.0;
+  table[16] =  8.0/64.0; table[17] = 56.0/64.0; table[18] =  4.0/64.0; table[19] = 52.0/64.0;
+  table[20] = 11.0/64.0; table[21] = 59.0/64.0; table[22] =  7.0/64.0; table[23] = 55.0/64.0;
+  table[24] = 40.0/64.0; table[25] = 24.0/64.0; table[26] = 36.0/64.0; table[27] = 20.0/64.0;
+  table[28] = 43.0/64.0; table[29] = 27.0/64.0; table[30] = 39.0/64.0; table[31] = 23.0/64.0;
+  table[32] =  2.0/64.0; table[33] = 50.0/64.0; table[34] = 14.0/64.0; table[35] = 62.0/64.0;
+  table[36] =  1.0/64.0; table[37] = 49.0/64.0; table[38] = 13.0/64.0; table[39] = 61.0/64.0;
+  table[40] = 34.0/64.0; table[41] = 18.0/64.0; table[42] = 46.0/64.0; table[43] = 30.0/64.0;
+  table[44] = 33.0/64.0; table[45] = 17.0/64.0; table[46] = 45.0/64.0; table[47] = 29.0/64.0;
+  table[48] = 10.0/64.0; table[49] = 58.0/64.0; table[50] =  6.0/64.0; table[51] = 54.0/64.0;
+  table[52] =  9.0/64.0; table[53] = 57.0/64.0; table[54] =  5.0/64.0; table[55] = 53.0/64.0;
+  table[56] = 42.0/64.0; table[57] = 26.0/64.0; table[58] = 38.0/64.0; table[59] = 22.0/64.0;
+  table[60] = 41.0/64.0; table[61] = 25.0/64.0; table[62] = 37.0/64.0; table[63] = 21.0/64.0;
+  return table[idx];
+}
+vec3 dither(vec2 fragCoord, vec3 color, float ps){
+  vec2 sc = floor(fragCoord / ps);
+  // Bayer + a little static noise: breaks the diagonal Bayer streaks that
+  // ordered dithering otherwise leaves on smooth gradients (the sky).
+  float threshold = bayer8(sc) - 0.5 + (hash21(sc) - 0.5) * 0.35;
+  float steps = colorNum - 1.0;
+  color += threshold * (1.0 / steps);
+  color = clamp(color, 0.0, 1.0);
+  return floor(color * steps + 0.5) / steps;
+}
+
+// ---------- scene --------------------------------------------------------
+// terrain lighting: dim + blue-shift as the sun drops below the horizon
+vec3 applyLight(vec3 c, float light, float night){
+  c *= light;
+  return mix(c, c * vec3(0.55, 0.62, 0.90), night * 0.55);
+}
+
+// blossom color chosen per-flower: red / yellow / white / purple / pink
+vec3 flowerColor(float r){
+  r = fract(r * 5.0);
+  if (r < 0.20) return vec3(0.93, 0.26, 0.30);
+  if (r < 0.40) return vec3(0.99, 0.79, 0.24);
+  if (r < 0.60) return vec3(0.97, 0.97, 0.99);
+  if (r < 0.80) return vec3(0.72, 0.42, 0.90);
+  return vec3(0.99, 0.52, 0.74);
+}
+
+void main(){
+  vec2 fc = gl_FragCoord.xy;
+  vec2 p  = fc / resolution;          // 0..1, y up
+  float aspect = resolution.x / resolution.y;
+  float ax = p.x * aspect;            // aspect-corrected x for round shapes
+  float T = time;
+
+  // --- time of day: sun/moon + sky follow the viewer's local clock -----
+  float t = hour;                              // 0..24 local time
+  float sunAlt = -cos(t / 24.0 * 6.2831853);   // -1 midnight, 0 at 6h/18h, +1 noon
+  float light  = 0.24 + 0.76 * smoothstep(-0.18, 0.32, sunAlt);
+  float night  = smoothstep(0.10, -0.28, sunAlt);
+  float day    = smoothstep(-0.05, 0.35, sunAlt);
+  float horizonY = 0.42;
+
+  // sky palette: night -> twilight (sun near horizon) -> day
+  vec3 topNight = vec3(0.03, 0.04, 0.13);
+  vec3 horNight = vec3(0.07, 0.08, 0.20);
+  vec3 topTwi   = vec3(0.28, 0.20, 0.45);
+  vec3 horTwi   = vec3(0.99, 0.52, 0.30);
+  vec3 topDay   = vec3(0.26, 0.52, 0.86);
+  vec3 horDay   = vec3(0.82, 0.90, 0.98);
+  float toTwi = smoothstep(-0.35, 0.0, sunAlt);
+  float toDay = smoothstep(0.0, 0.35, sunAlt);
+  vec3 skyTop = mix(mix(topNight, topTwi, toTwi), topDay, toDay);
+  vec3 skyHor = mix(mix(horNight, horTwi, toTwi), horDay, toDay);
+  vec3 col = mix(skyHor, skyTop, smoothstep(0.30, 1.0, p.y));
+
+  // stars, only at night and only in the sky
+  if (night > 0.01){
+    vec2 sg = floor(fc / 3.0);
+    float sv = hash21(sg);
+    float star = step(0.996, sv) * night * step(horizonY - 0.05, p.y);
+    col += vec3(0.9, 0.95, 1.0) * star * (0.6 + 0.4 * sin(T * 3.0 + sv * 100.0));
+  }
+
+  // drifting clouds (fade out at night)
+  float cl = fbm(vec2(ax * 2.0 + T * 0.02, p.y * 3.0));
+  cl = smoothstep(0.55, 0.95, cl) * smoothstep(0.34, 1.0, p.y);
+  col = mix(col, mix(vec3(0.55, 0.55, 0.65), vec3(1.0, 0.92, 0.86), day),
+            cl * (0.12 + 0.28 * day));
+
+  // --- sun: rises east (6h) -> noon overhead -> sets west (18h) ---------
+  float sunX   = (t - 6.0) / 12.0;              // 0 at sunrise .. 1 at sunset
+  float sunY   = horizonY + sunAlt * 0.48;
+  float sunVis = smoothstep(-0.12, 0.04, sunAlt);
+  float sd = distance(vec2(ax, p.y), vec2(sunX * aspect, sunY));
+  col += vec3(1.0, 0.60, 0.35) * smoothstep(0.5, 0.0, sd) * 0.35 * sunVis;
+  col = mix(col, vec3(1.0, 0.96, 0.82), smoothstep(0.085, 0.075, sd) * sunVis);
+
+  // --- moon: up when the sun is down -----------------------------------
+  float moonX   = t >= 18.0 ? (t - 18.0) / 12.0 : (t + 6.0) / 12.0;
+  float moonAlt = -sunAlt;
+  float moonY   = horizonY + moonAlt * 0.48;
+  float moonVis = smoothstep(-0.05, 0.12, moonAlt);
+  float md = distance(vec2(ax, p.y), vec2(moonX * aspect, moonY));
+  col += vec3(0.70, 0.80, 1.0) * smoothstep(0.32, 0.0, md) * 0.16 * moonVis;
+  vec3 moonCol = vec3(0.92, 0.93, 0.98) * (0.85 + 0.15 * fbm(vec2(ax * 40.0, p.y * 40.0)));
+  col = mix(col, moonCol, smoothstep(0.07, 0.062, md) * moonVis);
+
+  // --- mountains: three ridgelines, far -> near ------------------------
+  float ground = 0.34;
+  float hFar  = 0.44 + 0.10 * ridge(ax * 1.1, 10.0);
+  float hMid  = 0.40 + 0.15 * ridge(ax * 1.7, 40.0);
+  float hNear = 0.36 + 0.23 * ridge(ax * 2.4, 70.0);
+
+  if (p.y < hFar)  col = vec3(0.50, 0.48, 0.63);
+  if (p.y < hMid)  col = vec3(0.33, 0.31, 0.52);
+  if (p.y < hNear){
+    col = vec3(0.18, 0.17, 0.34);
+    // snow caps near the top of the tall peaks
+    float cap = smoothstep(hNear - 0.07, hNear - 0.01, p.y);
+    col = mix(col, vec3(0.88, 0.89, 0.97), cap * smoothstep(0.46, 0.54, hNear));
+  }
+
+  // --- meadow ----------------------------------------------------------
+  if (p.y < ground){
+    float g = p.y / ground;
+    vec3 grass = mix(vec3(0.13, 0.28, 0.11), vec3(0.37, 0.53, 0.24), g);
+    grass *= 0.9 + 0.1 * fbm(vec2(ax * 8.0 - T * 0.12, p.y * 8.0)); // wind ripple
+    col = grass;
+  }
+
+  // --- flowers: domain-repeated field, swaying in the wind -------------
+  // each bloom = swaying stem + a side leaf + radiating petals (petal count
+  // and size vary by "species") + a contrasting pistil center.
+  float band = 0.34;
+  if (p.y < band){
+    float cw = 0.05;                 // cell width in aspect-x
+    for (int k = -1; k <= 1; k++){
+      float cell = floor(ax / cw) + float(k);
+      float r  = hash11(cell * 1.7);
+      float r2 = hash11(cell * 3.1 + 5.0);
+      float r3 = hash11(cell * 2.3 + 11.0);
+      if (r < 0.30) continue;        // sparsity: not every cell blooms
+
+      float cx    = (cell + 0.5 + (r2 - 0.5) * 0.4) * cw;
+      float stemH = 0.11 + r * 0.14; // blossom height above the ground
+      float gust  = fbm(vec2(cell * 0.5, T * 0.25));
+      float hn    = clamp(p.y / stemH, 0.0, 1.0);
+      float sway  = (0.02 + 0.03 * gust) * sin(T * 1.6 + cell * 2.1) * hn * hn;
+      float sx    = cx + sway;
+
+      // stem
+      float onStem = smoothstep(0.0032, 0.0, abs(ax - sx))
+                   * step(0.012, p.y) * step(p.y, stemH);
+      col = mix(col, vec3(0.14, 0.32, 0.14), onStem);
+
+      // one leaf, offset to a side, swaying a bit less than the tip
+      float leafSide = r3 < 0.5 ? -1.0 : 1.0;
+      float leafY    = stemH * 0.5;
+      float lsway    = sway * 0.5;
+      vec2  lq = vec2(ax - (cx + lsway + leafSide * 0.013), p.y - leafY);
+      lq.y *= 3.0;                    // flatten into a leaf shape
+      float leaf = smoothstep(0.013, 0.009, length(lq)) * step(0.012, p.y);
+      col = mix(col, vec3(0.17, 0.41, 0.18), leaf);
+
+      // blossom: radiating petals via an angular scallop of the radius
+      vec2  q   = vec2(ax - sx, p.y - stemH);
+      float rad = length(q);
+      float ang = atan(q.y, q.x);
+      float baseR  = 0.024 + r3 * 0.013;                    // 0.024..0.037
+      float petalN = r < 0.55 ? 5.0 : (r < 0.80 ? 6.0 : 8.0); // species
+      float scallop  = 0.5 + 0.5 * cos(ang * petalN);
+      float boundary = baseR * (0.32 + 0.68 * scallop);
+      float petalMask = smoothstep(boundary, boundary - 0.006, rad);
+
+      // shade each petal: deep near the center, bright at the tip
+      vec3 petal = flowerColor(r2);
+      vec3 shade = mix(petal * 0.55, petal, smoothstep(baseR * 0.22, boundary, rad));
+      col = mix(col, shade, petalMask);
+
+      // pistil center (amber for most; darker for yellow petals)
+      float fb = fract(r2 * 5.0);
+      vec3  centerCol = (fb >= 0.2 && fb < 0.4) ? vec3(0.82, 0.46, 0.16)
+                                                : vec3(0.99, 0.83, 0.30);
+      float centerR = baseR * 0.32;
+      col = mix(col, centerCol, smoothstep(centerR, centerR - 0.004, rad));
+    }
+  }
+
+  // --- resolve everything into dots ------------------------------------
+  // uniform fine dots (pixelSize already scaled by device pixel ratio)
+  col = dither(fc, col, pixelSize);
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+interface SceneMeshProps {
+  pixelSize: number;
+  colorNum: number;
+  motion: boolean;
+}
+
+function SceneMesh({ pixelSize, colorNum, motion }: SceneMeshProps) {
+  const { viewport, size, gl } = useThree();
+  const matRef = useRef<THREE.ShaderMaterial>(null);
+
+  const uniforms = useMemo(
+    () => ({
+      time: new THREE.Uniform(6.0),
+      resolution: new THREE.Uniform(new THREE.Vector2(1, 1)),
+      pixelSize: new THREE.Uniform(pixelSize),
+      colorNum: new THREE.Uniform(colorNum),
+    }),
+    [] // created once; kept in sync in useFrame
+  );
+
+  useEffect(() => {
+    if (!matRef.current) return;
+    const dpr = gl.getPixelRatio();
+    matRef.current.uniforms.resolution.value.set(
+      Math.floor(size.width * dpr),
+      Math.floor(size.height * dpr)
+    );
+  }, [size, gl]);
+
+  useFrame(({ clock }) => {
+    const mat = matRef.current;
+    if (!mat) return;
+    if (motion) mat.uniforms.time.value = clock.getElapsedTime() + 6.0;
+    // render at native resolution but keep a constant on-screen dot size
+    mat.uniforms.pixelSize.value = pixelSize * gl.getPixelRatio();
+    mat.uniforms.colorNum.value = colorNum;
+  });
+
+  return (
+    <mesh scale={[viewport.width, viewport.height, 1]}>
+      <planeGeometry args={[1, 1]} />
+      <shaderMaterial
+        ref={matRef}
+        vertexShader={vertexShader}
+        fragmentShader={fragmentShader}
+        uniforms={uniforms}
+      />
+    </mesh>
+  );
+}
+
+export interface NatureDitherProps {
+  /** dot size in device pixels (bigger = chunkier dots) */
+  pixelSize?: number;
+  /** color levels per channel (lower = more posterized) */
+  colorNum?: number;
+}
+
+export default function NatureDither({
+  pixelSize = 2,
+  colorNum = 6,
+}: NatureDitherProps) {
+  const [motion, setMotion] = useState(true);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setMotion(!mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  return (
+    <div className="absolute inset-0">
+      <Canvas
+        camera={{ position: [0, 0, 6] }}
+        dpr={[1, 2]}
+        gl={{ antialias: false }}
+      >
+        <SceneMesh pixelSize={pixelSize} colorNum={colorNum} motion={motion} />
+      </Canvas>
+    </div>
+  );
+}
