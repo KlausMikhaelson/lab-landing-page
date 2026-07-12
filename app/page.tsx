@@ -14,7 +14,7 @@ export default function Home() {
       {/* nav */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-10">
         <div className="flex items-center gap-2.5 font-semibold tracking-tight">
-          {/* pixel dot-matrix "swarm" mark — echoes the dithered dots */}
+          {/* pixel dot-matrix "swarm" mark, echoes the dithered dots */}
           <svg
             width="20"
             height="20"
@@ -52,7 +52,7 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* hero — kept in the upper (sky) region so the flowers stay visible */}
+      {/* hero, kept in the upper (sky) region so the flowers stay visible */}
       <section className="relative z-10 mx-auto mt-[10vh] max-w-3xl px-6 sm:mt-[13vh] sm:px-10">
         <p className="mb-6 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-xs tracking-tight text-white/80 [text-shadow:0_1px_5px_rgba(0,0,0,0.85)]">
           <span
@@ -70,7 +70,7 @@ export default function Home() {
         </h1>
 
         <p className="mt-6 max-w-md text-pretty text-base leading-7 text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)] sm:text-lg">
-          Swarms of grounded agents reveal which version wins — and why.
+          Swarms of grounded agents reveal which version wins, and why.
         </p>
 
         <div className="mt-9">

@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * NatureDither — a nature scene (sky, sun/moon on a local-time day-night cycle,
+ * NatureDither, a nature scene (sky, sun/moon on a local-time day-night cycle,
  * layered mountains, a meadow and wind-swaying flowers) drawn entirely in one
  * fragment shader, then quantized with an 8x8 Bayer ordered-dither so the whole
  * picture resolves into colored DOTS.
  *
  * Rendered with a hand-rolled WebGL1 renderer (no three.js / react-three-fiber):
  * the scene is a single full-screen fragment shader, so the heavy 3D stack is
- * unnecessary — and its WebGL2 shader path is what fails in Safari. Plain WebGL1
+ * unnecessary, and its WebGL2 shader path is what fails in Safari. Plain WebGL1
  * is universally supported, and we compile with null-checks so an unsupported
  * context degrades gracefully instead of throwing.
  */
@@ -75,7 +75,7 @@ float ridge(float x, float seed){
 
 // ---------- 8x8 Bayer ordered dither -------------------------------------
 // Arithmetic Bayer (no local arrays / dynamic indexing) so it compiles on
-// strict WebGL implementations too — Safari/WebKit rejects the table form.
+// strict WebGL implementations too. Safari/WebKit rejects the table form.
 float bayer2(vec2 a){
   a = floor(a);
   return fract(a.x * 0.5 + a.y * a.y * 0.75);
@@ -286,7 +286,7 @@ function compileShader(
 
 /** Set up WebGL, run the render loop, return a cleanup fn (or null on failure).
  *  Calls onDeath when the context is gone for good (Safari killed it and never
- *  restored it) — the component then remounts a FRESH canvas, since a new
+ *  restored it), the component then remounts a FRESH canvas, since a new
  *  element gets a brand-new context, stepping the resolution down a tier. */
 function startScene(
   canvas: HTMLCanvasElement,
@@ -295,7 +295,7 @@ function startScene(
   onDeath: () => void
 ): (() => void) | null {
   // build tag: lets us verify in the user's console WHICH bundle is running
-  console.info(`[Understudy] scene renderer r5 — webgl1, live-recreate, dpr cap ${dprCap}`);
+  console.info(`[Understudy] scene renderer r5: webgl1, live-recreate, dpr cap ${dprCap}`);
   const gl = (canvas.getContext("webgl", {
     antialias: false,
     alpha: false,
@@ -370,7 +370,7 @@ function startScene(
   const render = (now: number) => {
     if (!running) return;
     raf = requestAnimationFrame(render); // always keep polling (also for restore)
-    // if the context is lost, skip drawing entirely — never call gl.* on a lost
+    // if the context is lost, skip drawing entirely; never call gl.* on a lost
     // context (that spams INVALID_OPERATION). Resume once it's restored.
     if (gl.isContextLost() || !program) return;
 
@@ -396,7 +396,7 @@ function startScene(
   let died = false;
   let restoreTimer: ReturnType<typeof setTimeout> | null = null;
   const die = () => {
-    // this context is gone for good — hand control back to the component,
+    // this context is gone for good, hand control back to the component,
     // which mounts a fresh canvas (new element = brand-new context)
     if (died) return;
     died = true;
@@ -414,16 +414,16 @@ function startScene(
     lossCount = now - lastLossAt < 10000 ? lossCount + 1 : 1;
     lastLossAt = now;
     if (lossCount >= 3) {
-      // thrashing: the GPU keeps killing us — recreate at a lower resolution
+      // thrashing: the GPU keeps killing us, recreate at a lower resolution
       // tier instead of looping lose/rebuild forever
-      console.warn("[Understudy] WebGL context thrashing — recreating at lower resolution");
+      console.warn("[Understudy] WebGL context thrashing, recreating at lower resolution");
       die();
       return;
     }
     // Safari sometimes never fires webglcontextrestored; don't wait forever
     restoreTimer = setTimeout(() => {
       if (!program) {
-        console.warn("[Understudy] WebGL context not restored — recreating canvas");
+        console.warn("[Understudy] WebGL context not restored, recreating canvas");
         die();
       }
     }, 1500);
@@ -485,7 +485,7 @@ export default function NatureDither({
   const [manualHour, setManualHour] = useState(12);
   const [live, setLive] = useState(true);
   // when a context dies permanently we remount a fresh canvas (keyed by gen),
-  // stepping the resolution cap down a tier each attempt — GPU memory
+  // stepping the resolution cap down a tier each attempt; GPU memory
   // pressure is the usual reason Safari kills contexts in the first place
   const [gen, setGen] = useState(0);
   const attemptsRef = useRef(0);

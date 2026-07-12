@@ -37,7 +37,7 @@ export default function WaitlistForm() {
     return (
       <p className="flex items-center gap-2 text-base font-medium text-emerald-300 drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">
         <span aria-hidden className="inline-block h-2 w-2 bg-emerald-300" />
-        You&apos;re on the list — we&apos;ll be in touch.
+        You&apos;re on the list. We&apos;ll be in touch.
       </p>
     );
   }

@@ -70,7 +70,7 @@ export const viewport: Viewport = {
   themeColor: SITE.bg,
 };
 
-// JSON-LD structured data — helps search engines and AI answer engines (GEO)
+// JSON-LD structured data: helps search engines and AI answer engines (GEO)
 // understand what Understudy is and describe/cite it accurately.
 const jsonLd = {
   "@context": "https://schema.org",

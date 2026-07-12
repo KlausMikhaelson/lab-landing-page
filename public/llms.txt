@@ -1,17 +1,17 @@
 # Understudy
 
-> Understudy runs swarms of behavior-grounded AI agents through a company's real product flows to predict which version of an experiment wins — who abandons, and why — before a single real user sees it.
+> Understudy runs swarms of behavior-grounded AI agents through a company's real product flows to predict which version of an experiment wins, who abandons, and why, before a single real user sees it.
 
 ## What it is
 
-Understudy is a simulated-user experimentation platform. Instead of waiting weeks for a live A/B test to reach significance, teams run a swarm of AI agents — each grounded in real behavioral data — through their actual product flow (checkout, onboarding, pricing page, etc.). The swarm predicts which variant will win, estimates the completion/abandonment rate for each, and explains the drop-off reasons.
+Understudy is a simulated-user experimentation platform. Instead of waiting weeks for a live A/B test to reach significance, teams run a swarm of AI agents, each grounded in real behavioral data, through their actual product flow (checkout, onboarding, pricing page, etc.). The swarm predicts which variant will win, estimates the completion/abandonment rate for each, and explains the drop-off reasons.
 
 ## How it works
 
 - **Grounded agents**: each agent's behavior is conditioned on real demographic and behavioral data, not generic role-play.
 - **Real flows**: agents navigate the company's actual staging site or prototype, not a mock.
 - **Prediction**: the swarm outputs which variant wins, per-segment completion rates, and the specific friction that causes abandonment.
-- **Validation**: the method is backtested on public behavioral datasets with known outcomes. Grounded predictions beat shuffled-attribute controls at p < 0.01 — evidence the signal comes from the grounding, not chance.
+- **Validation**: the method is backtested on public behavioral datasets with known outcomes. Grounded predictions beat shuffled-attribute controls at p < 0.01, evidence the signal comes from the grounding, not chance.
 
 ## Who it's for
 

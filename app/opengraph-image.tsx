@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "Understudy — Run the experiment before your users do";
+export const alt = "Understudy: Run the experiment before your users do";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -52,7 +52,7 @@ export default function OpengraphImage() {
             Run the experiment before your users do.
           </div>
           <div style={{ fontSize: 30, color: "rgba(255,255,255,0.82)", marginTop: 26, maxWidth: 820 }}>
-            Swarms of grounded agents reveal which version wins — and why.
+            Swarms of grounded agents reveal which version wins, and why.
           </div>
         </div>
       </div>

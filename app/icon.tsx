@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-// pixel dot-matrix "swarm" mark — same glyph as the nav logo
+// pixel dot-matrix "swarm" mark, same glyph as the nav logo
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
