@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
     default: SITE.title,
-    template: "%s · SAC lab",
+    template: "%s · Understudy",
   },
   description: SITE.description,
   applicationName: SITE.name,
@@ -34,9 +34,9 @@ export const metadata: Metadata = {
     "behavioral simulation",
     "product analytics",
   ],
-  authors: [{ name: "SAC lab" }],
-  creator: "SAC lab",
-  publisher: "SAC lab",
+  authors: [{ name: "Understudy" }],
+  creator: "Understudy",
+  publisher: "Understudy",
   category: "technology",
   alternates: { canonical: "/" },
   robots: {
@@ -71,7 +71,7 @@ export const viewport: Viewport = {
 };
 
 // JSON-LD structured data — helps search engines and AI answer engines (GEO)
-// understand what SAC lab is and describe/cite it accurately.
+// understand what Understudy is and describe/cite it accurately.
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [

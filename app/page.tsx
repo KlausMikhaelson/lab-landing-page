@@ -34,7 +34,7 @@ export default function Home() {
               <rect x="5.4" y="10.2" width="3.2" height="3.2" opacity="0.3" />
             </g>
           </svg>
-          <span className="text-lg">SAC lab</span>
+          <span className="text-lg">Understudy</span>
         </div>
         <div className="flex items-center gap-6 text-sm text-white/80">
           <a
@@ -87,7 +87,7 @@ export default function Home() {
 
       {/* footer */}
       <footer className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between px-6 py-4 text-xs text-white/70 sm:px-10">
-        <span>© {new Date().getFullYear()} SAC lab</span>
+        <span>© {new Date().getFullYear()} Understudy</span>
         <span className="hidden sm:inline">
           Simulated users, grounded in real behavior.
         </span>

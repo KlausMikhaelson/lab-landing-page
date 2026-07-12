@@ -295,7 +295,7 @@ function startScene(
   onDeath: () => void
 ): (() => void) | null {
   // build tag: lets us verify in the user's console WHICH bundle is running
-  console.info(`[SAC lab] scene renderer r5 — webgl1, live-recreate, dpr cap ${dprCap}`);
+  console.info(`[Understudy] scene renderer r5 — webgl1, live-recreate, dpr cap ${dprCap}`);
   const gl = (canvas.getContext("webgl", {
     antialias: false,
     alpha: false,
@@ -416,14 +416,14 @@ function startScene(
     if (lossCount >= 3) {
       // thrashing: the GPU keeps killing us — recreate at a lower resolution
       // tier instead of looping lose/rebuild forever
-      console.warn("[SAC lab] WebGL context thrashing — recreating at lower resolution");
+      console.warn("[Understudy] WebGL context thrashing — recreating at lower resolution");
       die();
       return;
     }
     // Safari sometimes never fires webglcontextrestored; don't wait forever
     restoreTimer = setTimeout(() => {
       if (!program) {
-        console.warn("[SAC lab] WebGL context not restored — recreating canvas");
+        console.warn("[Understudy] WebGL context not restored — recreating canvas");
         die();
       }
     }, 1500);
