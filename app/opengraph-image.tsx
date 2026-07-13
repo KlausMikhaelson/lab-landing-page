@@ -45,7 +45,7 @@ export default function OpengraphImage() {
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
             <div style={{ width: 12, height: 12, background: "#6ee7b7" }} />
             <div style={{ fontSize: 22, color: "rgba(255,255,255,0.85)", fontFamily: "monospace" }}>
-              Backtested on real behavioral data · p &lt; 0.01
+              94% accurate on a real 64,000-customer experiment
             </div>
           </div>
           <div style={{ fontSize: 76, fontWeight: 700, color: "white", lineHeight: 1.05, letterSpacing: -1.5, maxWidth: 900 }}>

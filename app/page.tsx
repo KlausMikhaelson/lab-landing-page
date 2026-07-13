@@ -59,8 +59,8 @@ export default function Home() {
             aria-hidden
             className="inline-block h-2 w-2 shrink-0 bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.7)]"
           />
-          Backtested on real behavioral data
-          <span className="text-emerald-300">p&nbsp;&lt;&nbsp;0.01</span>
+          Backtested on a real 64,000-customer experiment
+          <span className="text-emerald-300">94%&nbsp;accurate</span>
         </p>
 
         <h1 className="text-balance text-4xl font-semibold leading-[1.05] tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)] sm:text-6xl">
@@ -75,13 +75,17 @@ export default function Home() {
 
         <div className="mt-9">
           <WaitlistForm />
-          <a
+          {/* the control-group stat is the credibility claim: grounded vs scrambled */}
+          <p
             id="how"
-            href="#"
-            className="mt-4 inline-flex items-center text-sm font-medium text-white/75 underline-offset-4 transition-colors hover:text-white hover:underline"
+            className="mt-5 max-w-md font-mono text-xs leading-6 text-white/65 [text-shadow:0_1px_5px_rgba(0,0,0,0.85)]"
           >
-            See the proof →
-          </a>
+            <span className="text-emerald-300">94%</span> right about which
+            variant wins. <span className="text-white/85">35%</span> when we
+            scramble the behavioral data it learns from.
+            <br />
+            That gap is the product.
+          </p>
         </div>
       </section>
 

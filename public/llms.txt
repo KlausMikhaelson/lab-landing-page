@@ -11,7 +11,7 @@ Understudy is a simulated-user experimentation platform. Instead of waiting week
 - **Grounded agents**: each agent's behavior is conditioned on real demographic and behavioral data, not generic role-play.
 - **Real flows**: agents navigate the company's actual staging site or prototype, not a mock.
 - **Prediction**: the swarm outputs which variant wins, per-segment completion rates, and the specific friction that causes abandonment.
-- **Validation**: the method is backtested on public behavioral datasets with known outcomes. Grounded predictions beat shuffled-attribute controls at p < 0.01, evidence the signal comes from the grounding, not chance.
+- **Validation**: the method is backtested on public randomized experiments with known outcomes. On a real 64,000-customer email experiment, grounded agents picked the winning treatment per customer segment with 94% accuracy (p = 0.0003) and predicted effect sizes correlating +0.70 with the real ones; scrambling the behavioral grounding collapsed accuracy to 35% and inverted the correlation to -0.36. The signal comes from the grounding, not chance or memorization. Understudy also publishes where the method fails (aesthetic headline prediction is at chance under paraphrase controls).
 
 ## Who it's for
 

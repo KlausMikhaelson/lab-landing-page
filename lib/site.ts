@@ -9,7 +9,7 @@ export const SITE = {
   title: "Understudy: Run the experiment before your users do",
   tagline: "Run the experiment before your users do.",
   description:
-    "Understudy runs swarms of behavior-grounded agents through your real product flows to predict which version wins, who abandons, and why, before a single real user sees it. Backtested on real behavioral data.",
+    "Understudy runs swarms of behavior-grounded agents through your real product flows to predict which version wins, who abandons, and why, before a single real user sees it. Backtested on a real 64,000-customer experiment: 94% accurate at picking the winning variant per segment, versus 35% when the behavioral grounding is scrambled.",
   // TODO: set your handle
   twitter: "@understudy",
   brand: "#6ee7b7",

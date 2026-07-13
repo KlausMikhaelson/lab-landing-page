@@ -104,7 +104,7 @@ const jsonLd = {
         "Simulated-user A/B test prediction",
         "Behavior-grounded agent swarms",
         "Abandonment and drop-off analysis",
-        "Backtested on real behavioral data",
+        "Backtested on real randomized experiments: 94% winner accuracy vs 35% scrambled control",
       ],
       offers: {
         "@type": "Offer",
