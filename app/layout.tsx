@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { SITE } from "@/lib/site";
+import { PostHogProvider } from "./providers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -139,7 +140,7 @@ export default function RootLayout({
               y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
           })(window, document, "clarity", "script", "xl5ff9j3be");`}
         </Script>
-        {children}
+        <PostHogProvider>{children}</PostHogProvider>
       </body>
     </html>
   );
