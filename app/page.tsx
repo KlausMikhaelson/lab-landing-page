@@ -1,3 +1,4 @@
+import Link from "next/link";
 import NatureDither from "@/components/NatureDither";
 import WaitlistForm from "@/components/WaitlistForm";
 
@@ -34,18 +35,18 @@ export default function Home() {
               <rect x="5.4" y="10.2" width="3.2" height="3.2" opacity="0.3" />
             </g>
           </svg>
-          <span className="text-lg">Understudy</span>
+          <span className="text-base leading-tight sm:text-lg">General Simulation</span>
         </div>
-        <div className="flex items-center gap-6 text-sm text-white/80">
-          <a
-            href="#how"
-            className="hidden transition-colors hover:text-white sm:inline"
+        <div className="flex items-center gap-4 text-sm text-white/80 sm:gap-6">
+          <Link
+            href="/how-it-works"
+            className="whitespace-nowrap transition-colors hover:text-white"
           >
             How it works
-          </a>
+          </Link>
           <a
             href="#access"
-            className="rounded-full border border-white/25 bg-white/10 px-4 py-1.5 font-medium backdrop-blur-sm transition-colors hover:bg-white/20"
+            className="whitespace-nowrap rounded-full border border-white/25 bg-white/10 px-3 py-1.5 font-medium backdrop-blur-sm transition-colors hover:bg-white/20 sm:px-4"
           >
             Early access
           </a>
@@ -73,13 +74,10 @@ export default function Home() {
           Swarms of grounded agents reveal which version wins, and why.
         </p>
 
-        <div className="mt-9">
+        <div id="access" className="mt-9">
           <WaitlistForm />
           {/* the control-group stat is the credibility claim: grounded vs scrambled */}
-          <p
-            id="how"
-            className="mt-5 max-w-md font-mono text-xs leading-6 text-white/65 [text-shadow:0_1px_5px_rgba(0,0,0,0.85)]"
-          >
+          <p className="mt-5 max-w-md font-mono text-xs leading-6 text-white/65 [text-shadow:0_1px_5px_rgba(0,0,0,0.85)]">
             <span className="text-emerald-300">94%</span> right about which
             variant wins. <span className="text-white/85">35%</span> when we
             scramble the behavioral data it learns from.
@@ -91,7 +89,7 @@ export default function Home() {
 
       {/* footer */}
       <footer className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between px-6 py-4 text-xs text-white/70 sm:px-10">
-        <span>© {new Date().getFullYear()} Understudy</span>
+        <span>© {new Date().getFullYear()} General Simulation</span>
         <span className="hidden sm:inline">
           Simulated users, grounded in real behavior.
         </span>

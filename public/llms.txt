@@ -1,17 +1,17 @@
-# Understudy
+# General Simulation
 
-> Understudy runs swarms of behavior-grounded AI agents through a company's real product flows to predict which version of an experiment wins, who abandons, and why, before a single real user sees it.
+> General Simulation predicts which version of a product change will win, who abandons, and why, before a single real user sees it.
 
 ## What it is
 
-Understudy is a simulated-user experimentation platform. Instead of waiting weeks for a live A/B test to reach significance, teams run a swarm of AI agents, each grounded in real behavioral data, through their actual product flow (checkout, onboarding, pricing page, etc.). The swarm predicts which variant will win, estimates the completion/abandonment rate for each, and explains the drop-off reasons.
+General Simulation is a simulated-user experimentation platform. Instead of waiting weeks for a live A/B test to reach significance, teams learn up front which variant is likely to win, the expected completion and drop-off for each option, and the reasons behind them.
 
-## How it works
+## What it does
 
-- **Grounded agents**: each agent's behavior is conditioned on real demographic and behavioral data, not generic role-play.
-- **Real flows**: agents navigate the company's actual staging site or prototype, not a mock.
-- **Prediction**: the swarm outputs which variant wins, per-segment completion rates, and the specific friction that causes abandonment.
-- **Validation**: the method is backtested on public randomized experiments with known outcomes. On a real 64,000-customer email experiment, grounded agents picked the winning treatment per customer segment with 94% accuracy (p = 0.0003) and predicted effect sizes correlating +0.70 with the real ones; scrambling the behavioral grounding collapsed accuracy to 35% and inverted the correlation to -0.36. The signal comes from the grounding, not chance or memorization. Understudy also publishes where the method fails (aesthetic headline prediction is at chance under paraphrase controls).
+- Predicts the winning variant of an experiment before it ships.
+- Estimates completion and abandonment for each option.
+- Surfaces where users struggle and why they leave.
+- Backed by blind backtests on real experiments with known outcomes. On a real 64,000-customer experiment it was 94% accurate at picking the winning variant, versus 35% when the underlying behavioral signal is scrambled, a control that shows the accuracy comes from real signal, not chance or memorization. Results are published where the method works and where it doesn't.
 
 ## Who it's for
 
@@ -20,9 +20,9 @@ Growth, product, and CRO (conversion rate optimization) teams who want to de-ris
 ## Key facts
 
 - Category: simulated-user testing / experimentation / conversion optimization.
-- Differentiator: predictions are grounded in real behavior and validated by blind backtests, not vibes.
+- Differentiator: predictions are validated by blind backtests on real experiments, not guesswork.
 - Status: early access.
 
 ## Links
 
-- Home and early access: https://understudy.com
+- Home and early access: https://generalsimulation.com

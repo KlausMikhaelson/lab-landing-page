@@ -24,3 +24,20 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Pixel-dot pulse for the how-it-works pipeline glyphs. Guarded so users who
+   prefer reduced motion get static dots (their SVG opacity attribute). */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes us-pulse {
+    0%,
+    100% {
+      opacity: 0.22;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  .us-pulse {
+    animation: us-pulse 2.8s ease-in-out infinite;
+  }
+}

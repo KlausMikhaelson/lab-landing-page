@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
     default: SITE.title,
-    template: "%s · Understudy",
+    template: `%s · ${SITE.name}`,
   },
   description: SITE.description,
   applicationName: SITE.name,
@@ -36,9 +36,9 @@ export const metadata: Metadata = {
     "behavioral simulation",
     "product analytics",
   ],
-  authors: [{ name: "Understudy" }],
-  creator: "Understudy",
-  publisher: "Understudy",
+  authors: [{ name: SITE.name }],
+  creator: SITE.name,
+  publisher: SITE.name,
   category: "technology",
   alternates: { canonical: "/" },
   robots: {
@@ -73,7 +73,7 @@ export const viewport: Viewport = {
 };
 
 // JSON-LD structured data: helps search engines and AI answer engines (GEO)
-// understand what Understudy is and describe/cite it accurately.
+// understand what General Simulation is and describe/cite it accurately.
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [

@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "Understudy: Run the experiment before your users do";
+export const alt = "General Simulation: Run the experiment before your users do";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -37,7 +37,7 @@ export default function OpengraphImage() {
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 30, fontWeight: 700, color: "white", letterSpacing: -0.5 }}>Understudy</div>
+          <div style={{ fontSize: 30, fontWeight: 700, color: "white", letterSpacing: -0.5 }}>General Simulation</div>
         </div>
 
         {/* headline + subhead */}
